@@ -467,6 +467,324 @@ Union cred_num with the new one-hot encoded data and store the results as cr_loa
 Print the columns of the new data set.
 """
 
+# Create two data sets for numeric and non-numeric data
+cred_num = cr_loan_clean.select_dtypes(exclude=['object'])
+cred_str = cr_loan_clean.select_dtypes(include=['object'])
+
+# One-hot encode the non-numeric columns
+cred_str_onehot = pd.get_dummies(cred_str)
+
+# Union the one-hot encoded columns to the numeric ones
+cr_loan_prep = pd.concat([cred_num, cred_str_onehot], axis=1)
+
+# Print the columns in the new data set
+print(cr_loan_prep.columns)
+
+"""
+Look at all those columns! If you've ever seen a credit scorecard, the column_name_value format should look familiar. If you haven't seen one, look up some pictures during your next break!
+"""
 
 
+"""
+Predicting probability of default
+All of the data processing is complete and it's time to begin creating predictions for probability of default. You want to train a LogisticRegression() model on the data, and examine how it predicts the probability of default.
+
+So that you can better grasp what the model produces with predict_proba, you should look at an example record alongside the predicted probability of default. How do the first five predictions look against the actual values of loan_status?
+
+The data set cr_loan_prep along with X_train, X_test, y_train, and y_test have already been loaded in the workspace.
+"""
+
+"""
+Train a logistic regression model on the training data and store it as clf_logistic.
+Use predict_proba() on the test data to create the predictions and store them in preds.
+Create two data frames, preds_df and true_df, to store the first five predictions and true loan_status values.
+Print the true_df and preds_df as one set using .concat()
+"""
+
+# Train the logistic regression model on the training data
+clf_logistic = LogisticRegression(solver='lbfgs').fit(X_train, np.ravel(y_train))
+
+# Create predictions of probability for loan status using test data
+preds = clf_logistic.predict_proba(X_test)
+
+# Create dataframes of first five predictions, and first five true labels
+preds_df = pd.DataFrame(preds[:,1][0:5], columns = ['prob_default'])
+true_df = y_test.head()
+
+# Concatenate and print the two data frames for comparison
+print(pd.concat([true_df.reset_index(drop = True), preds_df], axis = 1))
+
+"""
+Neat! We have some predictions now, but they don't look very accurate do they? It looks like most of the rows with loan_status at 1 have a low probability of default. How good are the rest of the predictions? Next, let's see if we can determine how accurate the entire model is.
+
+"""
+
+
+"""
+1. Credit model performance
+00:00 - 00:07
+We saw predictions for probability of default against true values for loan status, but how do we analyze the performance of our model?
+
+2. Model accuracy scoring
+00:07 - 00:36
+The easiest way to analyze performance is with accuracy. Accuracy is the number of correct predictions divided by the total number of predictions. One way to check this is to use the score method within scikit-learn on the logistic regression. This is used on the trained model and returns the average accuracy for the test set. Using the score method will display this accuracy as a percentage. In this example, it tells us that 81 percent of the loans were predicted correctly.
+
+3. ROC curve charts
+00:36 - 01:08
+R-O-C charts are a great way to visualize the performance of our model. They plot the true positive rate, the percentage of correctly predicted defaults, against the false positive rate, the percentage of incorrectly predicted defaults. Using the roc_curve function in scikit-learn, we create these two values and the thresholds all at once. From there, we use a normal line plot to see the results. The dotted blue line represents a random prediction and the orange line represents our model's predictions.
+
+4. Analyzing ROC charts
+01:08 - 01:33
+R-O-C charts are interpreted by looking at how far away the model's curve gets from the dotted blue line shown here, which represents the random prediction. This movement away from the line is called lift. The more lift we have, the larger the area under the curve gets. The A-U-C is the calculated area between the curve and the random prediction. This is a direct indicator of how well our model makes predictions.
+
+5. Default thresholds
+01:33 - 01:58
+To analyze performance further, we need to decide what probability range is a default, and what is a non-default. Let's say that we decide any probability over 0.5 is a default, and anything below that is a non-default. What this means is that we will assign a new loan_status to these loans based on their probability of default and the threshold. Once we have this, we can further check the model's performance.
+
+6. Setting the threshold
+01:58 - 02:34
+Once the threshold is defined, we need to relabel our loans based on that threshold. For that, we will first need to create a variable to store the predicted probabilities. Then we can create a data frame from the second column which contains the probabilities of default. Then we apply a quick function to assign a value of 1 if the probability of default is above our threshold of 0.5. The lambda is there just to tell Python that we want to use a one-time function without defining it. The result of this is a data frame with new values for loan status based on our threshold.
+
+7. Credit classification reports
+02:34 - 03:06
+Another really useful function for evaluating our models is the classification report function within scikit-learn. This will show us several different evaluation metrics all at once! We use this function to evaluate our model using our true values for loan status stored in the y_test set, and our predicted loan status values from our logistic regression and the threshold we set. There are 2 really useful metrics in this table, and they are the precision and recall. For now, let's focus on recall.
+
+8. Selecting classification metrics
+03:06 - 03:30
+Sometimes after generating the report, you want to select or store specific values from within the report. To do this, you can use the precision recall fscore support function within sci-kit learn. With this function, we can get the recall for defaults from by subsetting the report the way we would any array. Here we select the second value from the second set.
+"""
+
+
+
+"""
+Default classification reporting
+It's time to take a closer look at the evaluation of the model. Here is where setting the threshold for probability of default will help you analyze the model's performance through classification reporting.
+
+Creating a data frame of the probabilities makes them easier to work with, because you can use all the power of pandas. Apply the threshold to the data and check the value counts for both classes of loan_status to see how many predictions of each are being created. This will help with insight into the scores from the classification report.
+
+The cr_loan_prep data set, trained logistic regression clf_logistic, true loan status values y_test, and predicted probabilities, preds are loaded in the workspace.
+"""
+
+"""
+Create a data frame of just the probabilities of default from preds called preds_df.
+Reassign loan_status values based on a threshold of 0.50 for probability of default in preds_df.
+Print the value counts of the number of rows for each loan_status.
+Print the classification report using y_test and preds_df.
+"""
+
+# Create a dataframe for the probabilities of default
+preds_df = pd.DataFrame(preds[:,1], columns = ['prob_default'])
+
+# Reassign loan status based on the threshold
+preds_df['loan_status'] = preds_df['prob_default'].apply(lambda x: 1 if x > 0.50 else 0)
+
+# Print the row counts for each loan status
+print(preds_df['loan_status'].value_counts())
+
+# Print the classification report
+target_names = ['Non-Default', 'Default']
+print(classification_report(y_test, preds_df['loan_status'], target_names=target_names))
+
+
+
+"""
+Selecting report metrics
+The classification_report() has many different metrics within it, but you may not always want to print out the full report. Sometimes you just want specific values to compare models or use for other purposes.
+
+There is a function within scikit-learn that pulls out the values for you. That function is precision_recall_fscore_support() and it takes in the same parameters as classification_report.
+
+It is imported and used like this:
+
+# Import function
+from sklearn.metrics import precision_recall_fscore_support
+# Select all non-averaged values from the report
+precision_recall_fscore_support(y_true,predicted_values)
+
+"""
+"""
+Print the classification report for y_test and predicted loan status.
+"""
+
+# Print the classification report
+target_names = ['Non-Default', 'Default']
+print(classification_report(y_test, preds_df['loan_status'], target_names=target_names))
+
+
+# Print all the non-average values from the report
+print(precision_recall_fscore_support(y_test, preds_df['loan_status']))
+
+
+# Print the first two numbers from the report
+print(precision_recall_fscore_support(y_test, preds_df['loan_status'])[:2])
+
+"""
+Great! Now we know how to pull out specific values from the report to either store later for comparison, or use to check against portfolio performance. Remember the impact of recall for defaults? This way, you can store that value for later calculations.
+"""
+
+
+"""
+Visually scoring credit models
+Now, you want to visualize the performance of the model. In ROC charts, the X and Y axes are two metrics you've already looked at: the false positive rate (fall-out), and the true positive rate (sensitivity).
+
+You can create a ROC chart of it's performance with the following code:
+
+fallout, sensitivity, thresholds = roc_curve(y_test, prob_default)
+plt.plot(fallout, sensitivity)
+
+To calculate the AUC score, you use roc_auc_score().
+
+The credit data cr_loan_prep along with the data sets X_test and y_test have all been loaded into the workspace. A trained LogisticRegression() model named clf_logistic has also been loaded into the workspace.
+
+Create a set of predictions for probability of default and store them in preds.
+Print the accuracy score the model on the X and y test sets.
+Use roc_curve() on the test data and probabilities of default to create fallout and sensitivity Then, create a ROC curve plot with fallout on the x-axis.
+Compute the AUC of the model using test data and probabilities of default and store it in auc.
+"""
+
+
+# Create predictions and store them in a variable
+preds = clf_logistic.predict_proba(X_test)
+
+# Print the accuracy score the model
+print(clf_logistic.score(X_test, y_test))
+
+# Plot the ROC curve of the probabilities of default
+prob_default = preds[:, 1]
+fallout, sensitivity, thresholds = roc_curve(y_test, prob_default)
+plt.plot(fallout, sensitivity, color = 'darkorange')
+plt.plot([0, 1], [0, 1], linestyle='--')
+plt.show()
+
+# Compute the AUC and store it in a variable
+auc = roc_auc_score(y_test, prob_default)
+
+
+"""
+I wasn't worried about your .score() on this exercise! So the accuracy for this model is about 80% and the AUC score is 76%. Notice that what the ROC chart shows us is the tradeoff between all values of our false positive rate (fallout) and true positive rate (sensitivity).
+"""
+
+
+"""
+1. Model discrimination and impact
+00:00 - 00:07
+We've looked at some ways to evaluate our logistic regression. Let's talk more about thresholds and their impact on portfolio performance.
+
+2. Confusion matrices
+00:07 - 00:34
+Another way to analyze our model's performance is with the confusion matrix. These will show us all our correct and incorrect predictions for loan status. The confusion matrix has four sections: true positives, false positives, false negatives, and true negatives. We've looked at recall for defaults within classification reports. That formula and where it resides in the confusion matrix are shown here.
+
+3. Default recall for loan status
+00:34 - 00:57
+The definition of default recall, also called sensitivity, is the proportion of actual positives correctly predicted. Before, we retrieved this value from the classification report without understanding how it's calculated. Recall is found by taking the number of true defaults and dividing it by the sum of true defaults and defaults predicted as non-default.
+
+4. Recall portfolio impact
+00:57 - 01:12
+Let's look at the recall for defaults highlighted in red in a classification report. This is an example of a report from an under-performing Logistic Regression model. Here, the proportion of true defaults predicted by our model was only 4 percent.
+
+5. Recall portfolio impact
+01:12 - 01:47
+Imagine that we have 50 thousand loans in our portfolio, and they each have a total loan amount of 50 dollars. As seen in the classification report, this model has a default recall of 4 percent. So, that means we correctly predicted 4 percent of defaults, and incorrectly predicted 96 percent of defaults. If all of our true default loans defaulted right now, our estimated loss from the portfolio would be 2.4 million dollars! This loss would be something we didn't plan for, and would be unexpected.
+
+6. Recall, precision, and accuracy
+01:47 - 02:27
+When it comes to metrics like recall, precision, and accuracy, it can be challenging to find an optimum number for all three as a target. Have a look at this example graph of a logistic regression model on the credit data. The blue line, which is default recall, starts out really high. This is because if we predict all loans to be a default, we definitely predict all of our defaults correctly! You can also see that when default recall is high, more often than not non-default recall is low. Initially, we have to make a determination about what scores for each are good enough in order to set a baseline for performance.
+
+"""
+
+
+"""
+Thresholds and confusion matrices
+You've looked at setting thresholds for defaults, but how does this impact overall performance? To do this, you can start by looking at the effects with confusion matrices.
+
+Recall the confusion matrix as shown here:
+
+
+
+Set different values for the threshold on probability of default, and use a confusion matrix to see how the changing values affect the model's performance.
+
+The data frame of predictions, preds_df, as well as the model clf_logistic have been loaded in the workspace.
+"""
+"""
+Reassign values of loan_status using a threshold of 0.5 for probability of default within preds_df.
+Print the confusion matrix of the y_test data and the new loan status values.
+"""
+
+# Set the threshold for defaults to 0.5
+preds_df['loan_status'] = preds_df['prob_default'].apply(lambda x: 1 if x > 0.5 else 0)
+
+# Print the confusion matrix
+print(confusion_matrix(y_test,preds_df['loan_status']))
+
+"""
+[[9023  175]
+ [2152  434]]
+"""
+
+# Set the threshold for defaults to 0.4
+preds_df['loan_status'] = preds_df['prob_default'].apply(lambda x: 1 if x > 0.4 else 0)
+
+# Print the confusion matrix
+print(confusion_matrix(y_test,preds_df['loan_status']))
+"""
+[[8476  722]
+ [1386 1200]]
+"""
+
+"""
+Based on the confusion matrices you just created, calculate the default recall for each. Using these values, answer the following: which threshold gives us the highest value for default recall?
+"""
+#  Answer 0.4 , Correct! The value for default recall at this threshold is actually pretty high! You can check out the non-default recalls as well to see how the threshold affected those values.
+
+
+"""
+How thresholds affect performance
+Setting the threshold to 0.4 shows promising results for model evaluation. Now you can assess the financial impact using the default recall which is selected from the classification reporting using the function precision_recall_fscore_support().
+
+For this, you will estimate the amount of unexpected loss using the default recall to find what proportion of defaults you did not catch with the new threshold. This will be a dollar amount which tells you how much in losses you would have if all the unfound defaults were to default all at once.
+
+The average loan value, avg_loan_amnt has been calculated and made available in the workspace along with preds_df and y_test.
+"""
+
+"""
+Reassign the loan_status values using the threshold 0.4.
+Store the number of defaults in preds_df by selecting the second value from the value counts and store it as num_defaults.
+Get the default recall rate from the classification matrix and store it as default_recall
+Estimate the unexpected loss from the new default recall by multiplying 1 - default_recall by the average loan amount and number of default loans.
+"""
+# Reassign the values of loan status based on the new threshold
+preds_df['loan_status'] = preds_df['prob_default'].apply(lambda x: 1 if x > 0.4 else 0)
+
+# Store the number of loan defaults from the prediction data
+num_defaults = preds_df['loan_status'].value_counts()[1]
+
+# Store the default recall from the classification report
+default_recall = precision_recall_fscore_support(y_test,preds_df['loan_status'])[1][1]
+
+# Calculate the estimated impact of the new default recall rate
+print(avg_loan_amnt * num_defaults * (1 - default_recall))
+
+
+"""
+Threshold selection
+You know there is a trade off between metrics like default recall, non-default recall, and model accuracy. One easy way to approximate a good starting threshold value is to look at a plot of all three using matplotlib. With this graph, you can see how each of these metrics look as you change the threshold values and find the point at which the performance of all three is good enough to use for the credit data.
+
+The threshold values thresh, default recall values def_recalls, the non-default recall values nondef_recalls and the accuracy scores accs have been loaded into the workspace. To make the plot easier to read, the array ticks for x-axis tick marks has been loaded as well.
+"""
+"""
+Plot the graph of thresh for the x-axis then def_recalls, non-default recall values, and accuracy scores on each y-axis.
+"""
+
+plt.plot(thresh,def_recalls)
+plt.plot(thresh,nondef_recalls)
+plt.plot(thresh,accs)
+plt.xlabel("Probability Threshold")
+plt.xticks(ticks)
+plt.legend(["Default Recall","Non-default Recall","Model Accuracy"])
+plt.show()
+
+"""
+Have a closer look at this plot. In fact, expand the window to get a really good look. Think about the threshold values from thresh and how they affect each of these three metrics. Approximately what starting threshold value would maximize these scores evenly?
+"""
+
+#  0.275  , Yes! This is the easiest pattern to see on this graph, because it's the point where all three lines converge. This threshold would make a great starting point, but declaring all loans about 0.275 to be a default is probably not practical.
 
