@@ -277,4 +277,196 @@ The first thing we do is separate our data into training columns and labels. Her
 """
 
 
+"""
+Logistic regression basics
+You've now cleaned up the data and created the new data set cr_loan_clean.
+
+Think back to the final scatter plot from chapter 1 which showed more defaults with high loan_int_rate. Interest rates are easy to understand, but what how useful are they for predicting the probability of default?
+
+Since you haven't tried predicting the probability of default yet, test out creating and training a logistic regression model with just loan_int_rate. Also check the model's internal parameters, which are like settings, to see the structure of the model with this one column.
+
+The data cr_loan_clean has already been loaded in the workspace.
+"""
+
+"""
+Create the X and y sets using the loan_int_rate and loan_status columns.
+Create and fit a logistic regression model to the training data and call it clf_logistic_single.
+Print the parameters of the model with .get_params().
+Check the intercept of the model with the .intercept_ attribute.
+"""
+
+# Create the X and y data sets
+X = cr_loan_clean[['loan_int_rate']]
+y = cr_loan_clean[['loan_status']]
+
+# Create and fit a logistic regression model
+clf_logistic_single = LogisticRegression()
+clf_logistic_single.fit(X, np.ravel(y))
+
+# Print the parameters of the model
+print(clf_logistic_single.get_params())
+
+# Print the intercept of the model
+print(clf_logistic_single.intercept_)
+
+
+"""
+Multivariate logistic regression
+Generally, you won't use only loan_int_rate to predict the probability of default. You will want to use all the data you have to make predictions.
+
+With this in mind, try training a new model with different columns, called features, from the cr_loan_clean data. Will this model differ from the first one? For this, you can easily check the .intercept_ of the logistic regression. Remember that this is the y-intercept of the function and the overall log-odds of non-default.
+"""
+
+
+"""
+Create a new X data set with loan_int_rate and person_emp_length. Store it as X_multi.
+Create a y data set with just loan_status.
+Create and .fit() a LogisticRegression() model on the new X data. Store it as clf_logistic_multi.
+Print the .intercept_ value of the model
+"""
+
+# Create X data for the model
+X_multi = cr_loan_clean[['loan_int_rate','person_emp_length']]
+
+# Create a set of y data for training
+y = cr_loan_clean[['loan_status']]
+
+# Create and train a new logistic regression
+clf_logistic_multi = LogisticRegression(solver='lbfgs').fit(X_multi, np.ravel(y))
+
+# Print the intercept of the model
+print(clf_logistic_multi.intercept_)
+
+
+"""
+Creating training and test sets
+You've just trained LogisticRegression() models on different columns.
+
+You know that the data should be separated into training and test sets. test_train_split() is used to create both at the same time. The training set is used to make predictions, while the test set is used for evaluation. Without evaluating the model, you have no way to tell how well it will perform on new loan data.
+
+In addition to the intercept_, which is an attribute of the model, LogisticRegression() models also have the .coef_ attribute. This shows how important each training column is for predicting the probability of default.
+"""
+
+"""
+Create the data set X using interest rate, employment length, and income. Create the y set using loan status.
+Use train_test_split() to create the training and test sets from X and y.
+Create and train a LogisticRegression() model and store it as clf_logistic.
+Print the coefficients of the model using .coef_.
+"""
+
+# Create the X and y data sets
+X = cr_loan_clean[['loan_int_rate','person_emp_length','person_income']]
+y = cr_loan_clean[['loan_status']]
+
+# Use test_train_split to create the training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=.4, random_state=123)
+
+# Create and fit the logistic regression model
+clf_logistic = LogisticRegression(solver='lbfgs').fit(X_train, np.ravel(y_train))
+
+# Print the models coefficients
+print(clf_logistic.coef_)
+
+"""
+Nicely done! Do you see that three columns were used for training and there are three values in .coef_? This tells you how important each column, or feature, was for predicting. The more positive the value, the more it predicts defaults. Look at the value for loan_int_rate.
+"""
+
+
+
+
+"""
+1. Predicting the probability of default
+00:00 - 00:10
+So far, we've trained a logistic regression on our credit data, and looked some attributes of the model. Now, let's discuss the structure of the model and how to create predictions.
+
+2. Logistic regression coefficients
+00:10 - 00:42
+In the previous exercise, we saw the following intercept and coefficients for our model. These coefficients the importance of each column. These values are part of the logistic regression formula that calculates the probability of default which we see here. Each coefficient is multiplied by the values in the column, and then added together along with the intercept. Then, 1 is divided by the sum of 1 and e to the negative power of our intercept coefficient sums. The result is the probability of default.
+
+3. Interpreting coefficients
+00:42 - 01:05
+Consider employment length as an example. I've already calculated the intercept and coefficient for a logistic regression using this one column. What this coefficient tells us is the log odds for non-default. This means that for every 1 year increase in employment length, the person is less likely to default by a factor of the coefficient.
+
+4. Interpreting coefficients
+01:05 - 01:19
+Let's say we have 3 values for employment length, and we want to know how this affects our probability of default by looking at the coefficients. What we see here is that the higher a person's employment length is, the less likely they are to default.
+
+5. Using non-numeric columns
+01:19 - 01:47
+Since we're talking about numbers, it's worth mentioning that so far we have only used numeric columns to train out models. Our data also contains non-numeric columns like loan intent, which uses words to describe how the person plans to use the money we lend them. In Python, unlike R, machine learning models do not know how to use these non-numeric values. So, we have to perform an operation called one-hot encoding before we can use them.
+
+6. One-hot encoding
+01:47 - 02:07
+One-hot encoding sounds complicated, but it's really simple. The main idea is to represent a string with a numeric value. Here is how it works. Let's think about the loan intent column where each loan has it's own intent value as a string. This sample has education, medical, and venture.
+
+7. One-hot encoding
+02:07 - 02:34
+With one-hot encoding, we get a new set of columns where each value from loan intent is now it's own column. Each new column is created by separating out the loans with each intent value and making the new column's value a 0 or 1. For example, if the loan intent was education, it is now represented with a 1 in the loan intent education column. This way, there is one hot value.
+
+8. Get dummies
+02:34 - 02:57
+To one-hot encode our string columns, we use the get dummies function within pandas. First, we separate the numeric and non-numeric columns from the data into two sets. Then we use the get dummies function to one-hot encode only the non-numeric columns. We union the two sets and the result is a full data set that's ready for machine learning!
+
+9. Predicting the future, probably
+02:57 - 03:23
+Once our model is trained, we use the predict proba method on test data to make predictions. This creates a set of probabilities for non-default and default. Notice the output is a series of numbers between 0 and 1. We have two for each loan. The first number is the probability of non-default, and the second number is the probability of default.
+
+"""
+
+
+
+
+"""
+Changing coefficients
+With this understanding of the coefficients of a LogisticRegression() model, have a closer look at them to see how they change depending on what columns are used for training. Will the column coefficients change from model to model?
+
+You should .fit() two different LogisticRegression() models on different groups of columns to check. You should also consider what the potential impact on the probability of default might be.
+
+The data set cr_loan_clean has already been loaded into the workspace along with the training sets X1_train, X2_train, and y_train.
+"""
+
+"""
+Check the first five rows of both X training sets.
+Train a logistic regression model, called clf_logistic1, with the X1 training set.
+Train a logistic regression model, called clf_logistic2, with the X2 training set.
+Print the coefficients for both logistic regression models.
+"""
+
+# Print the first five rows of each training set
+print(X1_train.head())
+print(X2_train.head())
+
+# Create and train a model on the first training data
+clf_logistic1 = LogisticRegression(solver='lbfgs').fit(X1_train, np.ravel(y_train))
+
+# Create and train a model on the second training data
+clf_logistic2 = LogisticRegression(solver='lbfgs').fit(X2_train, np.ravel(y_train))
+
+# Print the coefficients of each model
+print(clf_logistic1.coef_)
+print(clf_logistic2.coef_)
+
+"""
+Interesting! Notice that the coefficient for the person_income changed when we changed the data from X1 to X2. This is a reason to keep most of the data like we did in chapter 1, because the models will learn differently depending on what data they're given!
+"""
+
+
+"""
+One-hot encoding credit data
+It's time to prepare the non-numeric columns so they can be added to your LogisticRegression() model.
+
+Once the new columns have been created using one-hot encoding, you can concatenate them with the numeric columns to create a new data frame which will be used throughout the rest of the course for predicting probability of default.
+
+Remember to only one-hot encode the non-numeric columns. Doing this to the numeric columns would create an incredibly wide data set!
+"""
+
+"""
+Create a data set for all the numeric columns called cred_num and one for the non-numeric columns called cred_str.
+Use one-hot encoding on cred_str to create a new data set called cred_str_onehot.
+Union cred_num with the new one-hot encoded data and store the results as cr_loan_prep.
+Print the columns of the new data set.
+"""
+
+
+
 
